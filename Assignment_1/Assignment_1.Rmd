@@ -1,0 +1,212 @@
+---
+title: "Assignment 1"
+output: html_document
+date: "2026-09-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+## Data Source
+
+The dataset used in this assignment comes from the IPUMS Current Population Survey (CPS). The original extract contains monthly CPS observations from 2022 to 2026. For this assignment, I restrict the data to July 2026 and use five variables: age, sex, educational attainment, employment status, and usual weekly work hours.
+
+## Importing and Inspecting the Data
+
+The CPS data are first imported into R. I then inspect the first observations, variable names, years, and months included in the dataset.
+
+```{r}
+cps <- read.csv("C:/Users/sophi/Downloads/cps_00005.csv")
+
+head(cps)
+names(cps)
+
+table(cps$YEAR)
+table(cps$MONTH)
+```
+
+## Restricting the Sample to July 2026
+
+The dataset contains observations from several years and months. I restrict the data to observations where the year is 2026 and the month is July.
+
+```{r}
+# Restricting the dataset to July 2026
+cps <- cps[cps$YEAR == 2026 & cps$MONTH == 7, ]
+
+# Confirming the July 2026 sample
+table(cps$YEAR)
+table(cps$MONTH)
+```
+
+## Selecting the Variables
+
+Five variables are selected for the analysis. AGE measures age, SEX identifies sex, EDUC reports educational attainment, EMPSTAT reports employment status, and UHRSWORK1 reports usual weekly work hours at the main job.
+
+```{r}
+# Selecting the 5 variables used in the analysis
+cps <- cps[, c("AGE", "SEX", "EDUC", "EMPSTAT", "UHRSWORK1")]
+
+# Inspecting the selected variables
+head(cps)
+names(cps)
+```
+
+## Examining the Original Variables
+
+Before transforming the variables, I examine the categories and values contained in the original CPS variables.
+
+```{r}
+# Examining the variables in the sample
+table(cps$EDUC)
+table(cps$EMPSTAT)
+table(cps$SEX)
+table(cps$UHRSWORK1)
+```
+
+## Transforming Educational Attainment
+
+The original EDUC variable contains many detailed education categories. I group these categories into four broader levels: less than high school, high school diploma or equivalent, some college, and bachelor's degree or higher. Observations that do not contain valid education information remain missing.
+
+```{r}
+# Constructing education attainment categories
+cps$educattain <- NA
+
+cps$educattain[cps$EDUC %in% c(2, 10, 20, 30, 40, 50, 60, 71)] <-
+  "Less than high school"
+
+cps$educattain[cps$EDUC == 73] <-
+  "High school diploma or equivalent"
+
+cps$educattain[cps$EDUC %in% c(81, 91, 92)] <-
+  "Some college"
+
+cps$educattain[cps$EDUC %in% c(111, 123, 124, 125)] <-
+  "Bachelor's degree or higher"
+
+# Converting education attainment into a categorical variable
+cps$educattain <- factor(
+  cps$educattain,
+  levels = c(
+    "Less than high school",
+    "High school diploma or equivalent",
+    "Some college",
+    "Bachelor's degree or higher"
+  )
+)
+
+table(cps$educattain, useNA = "ifany")
+table(cps$educattain)
+```
+
+The first table also reports observations with missing education information, while the second table reports the frequencies of the four valid education categories.
+
+## Creating the Age Variable
+
+AGE is already a quantitative variable, so I create a working variable called 'age' without changing its values.
+
+```{r}
+# Creating the age variable
+cps$age <- cps$AGE
+```
+
+## Transforming Employment Status
+
+The original EMPSTAT variable contains several employment categories. I transform it into a binary variable called 'employed'. Individuals who are at work or have a job but were not at work last week are coded as 1. Individuals who are unemployed or not in the labor force are coded as 0. Other categories remain missing.
+
+```{r}
+# Constructing the binary employment variable
+cps$employed = NA
+
+cps$employed[
+  cps$EMPSTAT == 10 | cps$EMPSTAT == 12
+] = 1
+
+cps$employed[
+  cps$EMPSTAT == 21 | cps$EMPSTAT == 22 |
+    cps$EMPSTAT == 32 | cps$EMPSTAT == 34 |
+    cps$EMPSTAT == 36
+] = 0
+
+table(cps$employed, useNA = "ifany")
+```
+
+In the new variable, 1 represents employed respondents and 0 represents respondents who are not employed.
+
+## Transforming Sex
+
+The SEX variable is transformed into a binary variable called 'female'. Female respondents are coded as 1 and male respondents are coded as 0.
+
+```{r}
+# Constructing a female indicator variable
+cps$female = NA
+
+cps$female[cps$SEX == 1] = 0
+cps$female[cps$SEX == 2] = 1
+
+table(cps$female)
+```
+
+In this variable, 1 represents female respondents and 0 represents male respondents.
+
+## Cleaning Usual Weekly Work Hours
+
+UHRSWORK1 reports usual weekly work hours. The values 997 and 999 are special CPS codes rather than actual numbers of hours, so I replace them with missing values before calculating descriptive statistics.
+
+```{r}
+# Cleaning usual weekly work hours
+cps$hours = cps$UHRSWORK1
+
+cps$hours[cps$UHRSWORK1 == 997 | cps$UHRSWORK1 == 999] = NA
+```
+
+## Descriptive Statistics
+
+For the quantitative variables, I use summary statistics for age and usual weekly work hours. For the categorical variables, I report the frequency of observations in each category.
+
+```{r}
+# Descriptive Statistics for quantitative variables
+summary(cps$age)
+summary(cps$hours)
+
+# Descriptive Statistics for categorical variables
+table(cps$female)
+table(cps$employed)
+table(cps$educattain)
+```
+
+The quantitative summaries report measures such as the minimum, median, mean, and maximum. The categorical tables report the number of respondents in each category.
+
+## Distribution of Age
+
+The following histogram shows the distribution of age in the July 2026 CPS sample.
+
+```{r}
+# Plotting the distribution of age
+hist(
+  cps$age,
+  main = "Distribution of Age",
+  xlab = "Age"
+)
+```
+
+## Age and Usual Weekly Work Hours
+
+The following scatterplot examines the relationship between age and usual weekly work hours. Each point represents an observation with valid information for both variables.
+
+```{r}
+# Plotting age and usual weekly work hours
+plot(
+  cps$age,
+  cps$hours,
+  main = "Age and Usual Weekly Work Hours",
+  xlab = "Age",
+  ylab = "Usual Hours Worked per Week"
+)
+```
+
+## Conclusion
+
+This assignment used July 2026 CPS data from IPUMS to practice importing, selecting, transforming, summarizing, and visualizing data in R. The analysis included both quantitative and categorical variables. Educational attainment, employment status, and sex were transformed into new variables, and age and usual weekly work hours were used for the quantitative analysis and visualizations.
