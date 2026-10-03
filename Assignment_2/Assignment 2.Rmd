@@ -1,0 +1,329 @@
+---
+title: "Assignment 2"
+output: html_document
+date: "2026-10-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+UniversalBank <- read.csv("C:/Users/sophi/Downloads/UniversalBank (1).csv")
+summary(UniversalBank)
+library(caret)
+library(class)
+library(gmodels)
+
+# Removing ID and ZIP Code
+UniversalBank <- UniversalBank[, -c(1,5)]
+# Checking remaining variables
+names(UniversalBank)
+
+
+# Telling R that Education is categorical
+UniversalBank$Education <- as.factor(UniversalBank$Education)
+class(UniversalBank$Education)
+
+# Creating dummy variables for Education
+dummy_model <- dummyVars(~Education, data = UniversalBank)
+
+# Applying the dummy-variable model
+Education_dummy <- predict(dummy_model, UniversalBank)
+
+# Looking at the first rows
+head(Education_dummy)
+
+
+# Removing the original Education variable
+UniversalBank <- UniversalBank[, -6]
+
+# Adding the three Education dummy variables
+UniversalBank <- cbind(UniversalBank, Education_dummy)
+
+# Checking the variables
+names(UniversalBank)
+
+
+UniversalBank$Personal.Loan <- as.factor(UniversalBank$Personal.Loan)
+class(UniversalBank$Personal.Loan)
+
+# Selecting 60% of the data for training
+set.seed(123)
+
+train_rows <- createDataPartition(
+  UniversalBank$Personal.Loan,
+  p = 0.6,
+  list = FALSE
+)
+
+# Creating the training dataset
+Train <- UniversalBank[train_rows, ]
+
+# Creating the validation dataset
+Validation <- UniversalBank[-train_rows, ]
+
+# Separating the training predictors
+Train_Predictors <- Train[, -7]
+
+# Separating the validation predictors
+Validation_Predictors <- Validation[, -7]
+
+# Saving the training class labels
+Train_labels <- Train$Personal.Loan
+
+# Saving the validation class labels
+Validation_labels <- Validation$Personal.Loan
+
+# Creating the normalization model
+norm_model <- preProcess(
+  Train_Predictors,
+  method = "range"
+)
+
+# Normalizing the training predictors
+Train_Predictors <- predict(
+  norm_model,
+  Train_Predictors
+)
+
+# Normalizing the validation predictors
+Validation_Predictors <- predict(
+  norm_model,
+  Validation_Predictors
+)
+
+# Checking the normalized training data
+head(Train_Predictors)
+
+
+
+# Question 1
+# Creating the new customer
+New_Customer <- data.frame(
+  Age = 40,
+  Experience = 10,
+  Income = 84,
+  Family = 2,
+  CCAvg = 2,
+  Mortgage = 0,
+  Securities.Account = 0,
+  CD.Account = 0,
+  Online = 1,
+  CreditCard = 1,
+  Education.1 = 0,
+  Education.2 = 1,
+  Education.3 = 0
+)
+
+# Normalizing the new customer
+New_Customer_normalized <- predict(
+  norm_model,
+  New_Customer
+)
+
+
+# Classifying the new customer with k = 1
+Customer_k1 <- knn(
+  Train_Predictors,
+  New_Customer_normalized,
+  cl = Train_labels,
+  k = 1
+)
+
+# Showing the predicted class
+Customer_k1
+
+```
+Using k-NN with k=1 the customer is classified as class 0. So the model predicts that the customer will not accept the personal loan offer.
+
+```{r}
+#Question 2:
+# Setting the k values to test
+Search_grid <- expand.grid(
+  k = c(1, 3, 5, 7, 9, 11, 13, 15, 17, 19)
+)
+
+# Tuning the kNN model
+set.seed(123)
+
+model_k <- train(
+  x = Train_Predictors,
+  y = Train_labels,
+  method = "knn",
+  tuneGrid = Search_grid
+)
+
+# Showing the results
+model_k
+
+# Predicting the validation data using the selected k
+Validation_Predictions <- knn(
+  Train_Predictors,
+  Validation_Predictors,
+  cl = Train_labels,
+  k = 1
+)
+
+# Showing the first predictions
+head(Validation_Predictions)
+
+# Comparing the predicted and actual validation classes
+CrossTable(
+  Validation_labels,
+  Validation_Predictions,
+  prop.chisq = FALSE
+)
+
+```
+The selected value is k=1. The train function compared the different values of k and selected k=1 because it had the highest accuracy, about 95.19%. Although larger values of k provide more smoothing, their accuracy was lower in this case, so I used k=1 for the k-NN model.
+
+```{r}
+#QUESTION 3
+```
+Using the best value k=1, the confusion matrix for the validation data shows 1,787 true negatives, 21 false positives, 62 false negatives, and 130 true positives. Overall, 1,917 out of 2,000 observations were correctly classified, giving an accuracy of 95.85%.
+```{r}
+
+#QUESTION 4
+# Classifying the new customer using the best k
+Customer_best_k <- knn(
+  Train_Predictors,
+  New_Customer_normalized,
+  cl = Train_labels,
+  k = 1
+)
+
+# Showing the predicted class
+Customer_best_k
+
+```
+Using the best value k=1, the customer is classified as class 0. So the model predicts that this customer will not accept the personal loan offer.
+```{r}
+
+
+#QUESTION 5
+# Selecting 50% of the data for training
+set.seed(123)
+
+train_rows2 <- createDataPartition(
+  UniversalBank$Personal.Loan,
+  p = 0.5,
+  list = FALSE
+)
+
+# Creating the training dataset
+Train2 <- UniversalBank[train_rows2, ]
+
+# Creating the remaining dataset
+Remaining <- UniversalBank[-train_rows2, ]
+
+# Selecting 60% of the remaining data for validation
+validation_rows2 <- createDataPartition(
+  Remaining$Personal.Loan,
+  p = 0.6,
+  list = FALSE
+)
+
+# Creating the validation dataset
+Validation2 <- Remaining[validation_rows2, ]
+
+# Creating the test dataset
+Test2 <- Remaining[-validation_rows2, ]
+
+# Checking the size of each dataset
+nrow(Train2)
+nrow(Validation2)
+nrow(Test2)
+
+# Separating the training predictors
+Train2_Predictors <- Train2[, -7]
+
+# Separating the validation predictors
+Validation2_Predictors <- Validation2[, -7]
+
+# Separating the test predictors
+Test2_Predictors <- Test2[, -7]
+
+# Saving the training class labels
+Train2_labels <- Train2$Personal.Loan
+
+# Saving the validation class labels
+Validation2_labels <- Validation2$Personal.Loan
+
+# Saving the test class labels
+Test2_labels <- Test2$Personal.Loan
+
+# Creating the new normalization model
+norm_model2 <- preProcess(
+  Train2_Predictors,
+  method = "range"
+)
+
+# Normalizing the training predictors
+Train2_Predictors <- predict(
+  norm_model2,
+  Train2_Predictors
+)
+
+# Normalizing the validation predictors
+Validation2_Predictors <- predict(
+  norm_model2,
+  Validation2_Predictors
+)
+
+# Normalizing the test predictors
+Test2_Predictors <- predict(
+  norm_model2,
+  Test2_Predictors
+)
+
+# Predicting the training data
+Train2_Predictions <- knn(
+  Train2_Predictors,
+  Train2_Predictors,
+  cl = Train2_labels,
+  k = 1
+)
+
+# Predicting the validation data
+Validation2_Predictions <- knn(
+  Train2_Predictors,
+  Validation2_Predictors,
+  cl = Train2_labels,
+  k = 1
+)
+
+# Predicting the test data
+Test2_Predictions <- knn(
+  Train2_Predictors,
+  Test2_Predictors,
+  cl = Train2_labels,
+  k = 1
+)
+
+# Creating the training confusion matrix
+CrossTable(
+  Train2_labels,
+  Train2_Predictions,
+  prop.chisq = FALSE
+)
+
+# Creating the validation confusion matrix
+CrossTable(
+  Validation2_labels,
+  Validation2_Predictions,
+  prop.chisq = FALSE
+)
+
+# Creating the test confusion matrix
+CrossTable(
+  Test2_labels,
+  Test2_Predictions,
+  prop.chisq = FALSE
+)
+
+```
+After splitting the data, I had 2,500 observations for training, 1,500 for validation, and 1,000 for testing. With k=1, the training accuracy was 100 percent, while the validation and test accuracies were 96% and 95.6%.
+The training accuracy is higher because the model is classifying the same observations that were used in training. The validation and test results are a little lower, but they are very close to each other, which shows that the model gives similar results on data it did not use for training.
+But the model is better at predicting class 0 than class 1. In the test set, it correctly predicted 63 out of 96 customers who actually accepted the loan, which is about 65.6%. Since only 9.6% of customers accepted the loan, the data are unbalanced. The overall accuracy is high partly because most customers did not accept the loan, so accuracy alone can hide the fact that the model is less effective at identifying the smaller group of customers who actually accepted it.
