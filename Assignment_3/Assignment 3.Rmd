@@ -1,0 +1,185 @@
+---
+title: "Assignment 3"
+output: html_document
+date: "2026-10-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+UniversalBank <- read.csv("C:/Users/sophi/Downloads/UniversalBank (1).csv")
+summary(UniversalBank)
+library(caret)
+library(class)
+library(gmodels)
+
+# Selecting the three variables
+UniversalBank <- UniversalBank[, c("Online", "CreditCard", "Personal.Loan")]
+
+# Renaming the variables
+names(UniversalBank) <- c("Online", "CC", "Loan")
+
+# Converting the variables to factors
+UniversalBank$Online <- as.factor(UniversalBank$Online)
+UniversalBank$CC <- as.factor(UniversalBank$CC)
+UniversalBank$Loan <- as.factor(UniversalBank$Loan)
+
+# Selecting 60% of the data for training
+set.seed(123)
+
+train_rows <- createDataPartition(
+  UniversalBank$Loan,
+  p = 0.6,
+  list = FALSE
+)
+
+# Creating the training dataset
+Train <- UniversalBank[train_rows, ]
+
+# Creating the validation dataset
+Validation <- UniversalBank[-train_rows, ]
+
+# Checking the size of each dataset
+nrow(Train)
+nrow(Validation)
+
+
+# QUESTION A
+
+# Creating the pivot table
+Pivot_A <- table(
+  CC = Train$CC,
+  Loan = Train$Loan,
+  Online = Train$Online
+)
+
+# Showing the pivot table
+ftable(
+  Pivot_A,
+  row.vars = c("CC", "Loan"),
+  col.vars = "Online"
+)
+
+
+
+# QUESTION B
+
+# Calculating the probability of loan acceptance
+Loan_Probability <- 51 / (51 + 467)
+
+# Showing the probability
+Loan_Probability
+
+```
+Among the 518 customers who have a credit card and use online banking, 51 accepted the loan. The probability of accepting the loan is 51/518 = 9.85%.
+
+```{r}
+# QUESTION C
+
+# Creating the pivot table for Loan and Online
+Pivot_Online <- table(
+  Loan = Train$Loan,
+  Online = Train$Online
+)
+
+# Showing the first pivot table
+Pivot_Online
+
+# Creating the pivot table for Loan and CC
+Pivot_CC <- table(
+  Loan = Train$Loan,
+  CC = Train$CC
+)
+
+# Showing the second pivot table
+Pivot_CC
+
+
+# QUESTION D
+
+# Calculating P(CC = 1 | Loan = 1)
+P_CC1_Loan1 <- 84 / 288
+
+# Calculating P(Online = 1 | Loan = 1)
+P_Online1_Loan1 <- 176 / 288
+
+# Calculating P(Loan = 1)
+P_Loan1 <- 288 / 3000
+
+# Calculating P(CC = 1 | Loan = 0)
+P_CC1_Loan0 <- 777 / 2712
+
+# Calculating P(Online = 1 | Loan = 0)
+P_Online1_Loan0 <- 1611 / 2712
+
+# Calculating P(Loan = 0)
+P_Loan0 <- 2712 / 3000
+
+# Showing the probabilities
+P_CC1_Loan1
+P_Online1_Loan1
+P_Loan1
+P_CC1_Loan0
+P_Online1_Loan0
+P_Loan0
+
+```
+Among the customers who accepted the loan, 29.17% have a credit card and 61.11% use online banking. Among those who did not accept the loan, 28.65% have a credit card and 59.40% use online banking. Overall, 9.6% accepted the loan and 90.4% did not.
+
+```{r}
+# QUESTION E
+
+# Calculating the probability score for Loan = 1
+Loan1_score <- P_CC1_Loan1 * P_Online1_Loan1 * P_Loan1
+
+# Calculating the probability score for Loan = 0
+Loan0_score <- P_CC1_Loan0 * P_Online1_Loan0 * P_Loan0
+
+# Calculating the Naive Bayes probability
+NB_Probability <- Loan1_score / (Loan1_score + Loan0_score)
+
+# Showing the probability
+NB_Probability
+
+```
+Using the Naive Bayes formula, the probability that a customer with a credit card who uses online banking will accept the loan is approximately 10.01%.
+
+```{r}
+# QUESTION F
+
+```
+The pivot table gives a probability of 9.85%, while Naive Bayes gives 10.01%. The pivot table is more accurate for the training data because it uses the actual observed proportions without assuming conditional independence between the predictors.
+
+```{r}
+# QUESTION G
+
+library(e1071)
+
+# Training the Naive Bayes model
+NB_Model <- naiveBayes(
+  Loan ~ CC + Online,
+  data = Train
+)
+
+# Showing the model output
+NB_Model
+
+# Predicting probabilities for the training data
+NB_Predictions <- predict(
+  NB_Model,
+  Train,
+  type = "raw"
+)
+
+# Selecting a customer with CC = 1 and Online = 1
+Matching_row <- which(
+  Train$CC == 1 & Train$Online == 1
+)[1]
+
+# Showing the probability of Loan = 1
+NB_Predictions[Matching_row, "1"]
+
+```
+The calculation uses the prior probabilities of Loan = 1 and Loan = 0, and the conditional probabilities of CC = 1 and Online = 1 for both loan classes. The Naive Bayes model gives a probability of 10.01%, which matches the result calculated manually in Question E.
